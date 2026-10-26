@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
+<title>Painel de Prevenção de Perdas</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap">
+<style>
+:root {
+  --bg: #0B1114;
+  --surface: #121B1F;
+  --ink: #E7EEEC;
+  --muted: #8CA09C;
+  --line: #24333A;
+  --wash: #1B282D;
+  --good: #34C79A;
+  --bad: #F2675D;
+  --warn: #E8B04A;
+  --support: #5E9CEB;
+  --good-bg: #12362C;
+  --bad-bg: #3B1D1B;
+  --warn-bg: #3A2D12;
+  color-scheme: dark;
+  --f-display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --f-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--f-body); font-size: 15px; line-height: 1.45;
+  padding-block: 20px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+h1, h2 { font-family: var(--f-display); margin: 0; text-wrap: balance; }
+h1 { font-size: 38px; line-height: 1; font-weight: 700; text-transform: uppercase; letter-spacing: .01em; }
+h2 { font-size: 22px; font-weight: 600; text-transform: uppercase; letter-spacing: .02em; }
+.eyebrow { margin: 0 0 6px; font-size: 12px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+:focus-visible { outline: 2px solid var(--support); outline-offset: 2px; }
+
+.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 14px 24px; }
+.seg { display: flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); overflow: hidden; }
+.seg button { font: inherit; font-weight: 500; font-size: 14px; color: var(--ink); background: transparent; border: 0; border-right: 1px solid var(--line); padding: 9px 14px; cursor: pointer; min-height: 40px; }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+
+.filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 14px; }
+.ff { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ff input { width: auto; min-width: 156px; }
+.filters .sub { margin: 0 0 10px auto; }
+.banner { border: 1px solid var(--warn); background: var(--warn-bg); color: var(--ink); border-radius: 6px; padding: 12px 14px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 18px; min-width: 0; }
+.panel > h2 { margin-bottom: 12px; }
+.hint { color: var(--muted); font-size: 13px; margin: 10px 0 0; max-width: 70ch; }
+
+.summary { padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 2.2fr); }
+.cell { padding: 18px; border-right: 1px solid var(--line); min-width: 0; }
+.cell:last-child { border-right: 0; }
+.lbl { font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.big { font-family: var(--f-display); font-weight: 700; font-size: 56px; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.big.good { color: var(--good); }
+.big.bad { color: var(--bad); }
+.sub { color: var(--muted); font-size: 13px; margin: 2px 0 0; }
+.part-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+.track { position: relative; height: 12px; background: var(--wash); border-radius: 2px; margin: 12px 0 4px; }
+.fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 2px; background: var(--muted); transition: width .3s ease; }
+.fill.good { background: var(--good); }
+.fill.warn { background: var(--warn); }
+.fill.low { background: var(--bad); }
+.marker { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); }
+.marker-l { position: relative; height: 16px; font-size: 12px; color: var(--muted); }
+.marker-l span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+
+.pill { display: inline-block; font-size: 12px; font-weight: 600; letter-spacing: .04em; padding: 2px 8px; border-radius: 3px; white-space: nowrap; background: var(--wash); color: var(--muted); }
+.pill.good { background: var(--good-bg); color: var(--good); }
+.pill.warn { background: var(--warn-bg); color: var(--warn); }
+.pill.low { background: var(--bad-bg); color: var(--bad); }
+
+.tbl-wrap { overflow-x: auto; }
+table { width: 100%; min-width: 680px; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { padding: 11px 10px; text-align: right; border-bottom: 1px solid var(--line); vertical-align: middle; }
+thead th { font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); border-bottom: 2px solid var(--ink); }
+th:first-child, td:first-child { text-align: left; }
+tbody th { font-weight: 600; font-size: 16px; }
+td.n { font-family: var(--f-display); font-size: 26px; font-weight: 600; line-height: 1; }
+td.n.good { color: var(--good); }
+td.n.bad { color: var(--bad); }
+td.n.sup { color: var(--support); }
+td.n.zero { color: var(--muted); font-weight: 500; }
+tfoot th, tfoot td { border-bottom: 0; border-top: 2px solid var(--ink); background: var(--wash); }
+.mbar { position: relative; height: 7px; background: var(--wash); border-radius: 4px; margin-top: 8px; }
+.mbar i { display: block; height: 100%; border-radius: 4px; background: var(--muted); transition: width .3s ease; }
+.mbar i.good, .mbar i.g { background: var(--good); }
+.mbar i.bad, .mbar i.r { background: var(--bad); }
+.mbar i.sup { background: var(--support); }
+.cell .mbar { height: 8px; margin: 10px 0 8px; }
+.empty { padding: 22px 4px; color: var(--muted); }
+.empty strong { color: var(--ink); }
+
+.cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+form { display: flex; flex-direction: column; gap: 16px; }
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.field > .lbl { margin: 0; }
+input[type="date"], input[type="time"], input[type="text"], input[type="number"], textarea, select {
+  font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+  padding: 9px 10px; min-height: 42px; width: 100%;
+}
+.opts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.opt { position: relative; }
+.opt input { position: absolute; opacity: 0; inset: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.opt span { display: block; text-align: center; border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; font-weight: 600; background: var(--surface); min-height: 42px; }
+.opt input:checked + span.r { background: var(--good-bg); border-color: var(--good); color: var(--good); }
+.opt input:checked + span.p { background: var(--bad-bg); border-color: var(--bad); color: var(--bad); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { position: relative; }
+.chip input { position: absolute; opacity: 0; inset: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.chip span { display: block; border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; font-weight: 500; background: var(--surface); min-height: 38px; }
+.chip input:checked + span { background: var(--support); border-color: var(--support); color: var(--surface); }
+.btn { font: inherit; font-weight: 600; border-radius: 6px; padding: 11px 16px; min-height: 44px; cursor: pointer; border: 1px solid var(--ink); background: var(--ink); color: var(--surface); }
+.btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+.btn.sm { min-height: 34px; padding: 5px 10px; font-size: 13px; }
+.btn.danger { background: var(--bad); border-color: var(--bad); color: #fff; }
+
+.log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.log li { display: flex; flex-direction: column; gap: 6px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.lh { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.lh .who { flex: 1; min-width: 120px; font-weight: 600; overflow-wrap: anywhere; }
+.lh .val { font-family: var(--f-display); font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.ld { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.lt { margin: 0; font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.scroll { max-height: 700px; overflow-y: auto; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+textarea { resize: vertical; }
+
+details.panel > summary { cursor: pointer; font-family: var(--f-display); font-size: 22px; font-weight: 600; text-transform: uppercase; letter-spacing: .02em; }
+.mgmt { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; margin-top: 16px; }
+.mgmt h3 { margin: 0 0 8px; font-size: 13px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.row { display: flex; gap: 8px; }
+.members { list-style: none; margin: 10px 0 0; padding: 0; }
+.members li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.members .off { color: var(--muted); text-decoration: line-through; }
+code { font-size: 13px; background: var(--wash); padding: 1px 5px; border-radius: 3px; overflow-wrap: anywhere; }
+
+.toast { position: fixed; left: max(16px, env(safe-area-inset-left, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--surface); padding: 10px 14px; border-radius: 6px; font-weight: 500; max-width: calc(100% - 32px); opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 20; }
+.toast.on { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <p class="eyebrow">Lopes Supermercados</p>
+      <h1>Prevenção de Perdas</h1>
+    </div>
+    <div class="seg" role="group" aria-label="Período" id="period">
+      <button type="button" data-p="hoje" aria-pressed="false">Hoje</button>
+      <button type="button" data-p="7d" aria-pressed="false">7 dias</button>
+      <button type="button" data-p="mes" aria-pressed="false">Este mês</button>
+      <button type="button" data-p="mespassado" aria-pressed="false">Mês passado</button>
+      <button type="button" data-p="tudo" aria-pressed="false">Tudo</button>
+    </div>
+  </header>
+
+  <div class="filters" role="group" aria-label="Filtro por mês ou datas">
+    <div class="ff">
+      <label class="lbl" for="p-month">Mês</label>
+      <input type="month" id="p-month">
+    </div>
+    <div class="ff">
+      <label class="lbl" for="p-from">De</label>
+      <input type="date" id="p-from">
+    </div>
+    <div class="ff">
+      <label class="lbl" for="p-to">Até</label>
+      <input type="date" id="p-to">
+    </div>
+    <button class="btn ghost sm" type="button" id="p-clear" hidden>Limpar filtro</button>
+    <p class="sub" id="p-label" aria-live="polite"></p>
+  </div>
+
+  <div id="banner" class="banner" hidden></div>
+
+  <section class="panel summary" aria-label="Resultado da equipe">
+    <div class="cell">
+      <div class="lbl">Furtos recuperados</div>
+      <div class="big good" id="s-rec">—</div>
+      <div class="mbar" aria-hidden="true"><i class="g" id="b-rec" style="width:0%"></i></div>
+      <p class="sub" id="s-rec-p">—</p>
+    </div>
+    <div class="cell">
+      <div class="lbl">Furtos perdidos</div>
+      <div class="big bad" id="s-perd">—</div>
+      <div class="mbar" aria-hidden="true"><i class="r" id="b-perd" style="width:0%"></i></div>
+      <p class="sub" id="s-perd-p">—</p>
+    </div>
+    <div class="cell">
+      <div class="lbl">Abordagens no período</div>
+      <div class="big" id="s-total-n">—</div>
+      <div class="mbar stack" aria-hidden="true"><i class="g" id="b-st-rec" style="width:0%"></i><i class="r" id="b-st-perd" style="width:0%"></i></div>
+      <p class="sub">Taxa de recuperação <strong id="s-rate">—</strong></p>
+    </div>
+    <div class="cell part">
+      <div class="lbl">Participação da equipe</div>
+      <div class="part-head">
+        <div class="big" id="p-val">—</div>
+        <span class="pill" id="p-pill">Sem dados</span>
+      </div>
+      <div class="track" aria-hidden="true">
+        <div class="fill" id="p-fill" style="width:0%"></div>
+        <div class="marker" id="p-meta" style="left:60%"></div>
+      </div>
+      <div class="marker-l" aria-hidden="true"><span id="p-meta-l" style="left:60%">Meta 60%</span></div>
+      <p class="sub" id="p-text">—</p>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-team">
+    <h2 id="h-team">Resultado por fiscal</h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Fiscal</th>
+            <th scope="col">Recuperou</th>
+            <th scope="col">Perdeu</th>
+            <th scope="col">Apoio</th>
+            <th scope="col">Taxa de recuperação</th>
+            <th scope="col">Abordagens com apoio</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+        <tfoot id="foot"></tfoot>
+      </table>
+    </div>
+    <div id="team-empty" class="empty" hidden></div>
+  </section>
+
+  <div class="cols">
+    <section class="panel" aria-labelledby="h-reg">
+      <h2 id="h-reg">Registrar ocorrência</h2>
+      <form id="
